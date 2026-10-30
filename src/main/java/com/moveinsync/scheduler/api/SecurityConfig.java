@@ -25,12 +25,13 @@ public class SecurityConfig {
         },username);
     }
     @Bean SecurityFilterChain security(HttpSecurity http) throws Exception {
-        return http.csrf(c -> c.disable()).httpBasic(withDefaults()).authorizeHttpRequests(a -> a
-            .requestMatchers("/actuator/health").permitAll()
-            .requestMatchers("/actuator/**").hasRole("ADMIN")
-            .requestMatchers("/api/admin/**").hasRole("ADMIN")
-            .requestMatchers("/api/**").authenticated()
-            .anyRequest().denyAll()).build();
+      return http.csrf(c -> c.disable()).httpBasic(withDefaults()).authorizeHttpRequests(a -> a
+    .requestMatchers("/actuator/health").permitAll()
+    .requestMatchers("/actuator/**").hasRole("ADMIN")
+    .requestMatchers("/api/admin/**").hasRole("ADMIN")
+    .requestMatchers("/", "/index.html", "/app.css", "/app.js", "/favicon.svg").permitAll()
+    .requestMatchers("/api/**").authenticated()
+    .anyRequest().denyAll()).build();	
     }
     @Bean CommandLineRunner bootstrap(JdbcTemplate jdbc,PasswordEncoder encoder,@Value("${app.bootstrap-admin-password}") String password) {
         return args -> jdbc.update("INSERT INTO app_user(username,password_hash,role) VALUES ('admin',?,'ADMIN') ON CONFLICT(username) DO NOTHING",encoder.encode(password));

@@ -23,6 +23,35 @@ public class ApiController {
     public ApiController(JdbcTemplate jdbc,SchedulerStore store,PasswordEncoder encoder,@Value("${app.shards}") int shards) {
         this.jdbc=jdbc; this.store=store; this.encoder=encoder; this.shards=shards;
     }
+    @GetMapping("/me")
+public Map<String, String> me(Authentication auth) {
+    String role = auth.getAuthorities().stream()
+            .findFirst()
+            .orElseThrow()
+            .getAuthority()
+            .replace("ROLE_", "");
+
+    return Map.of(
+            "username", auth.getName(),
+            "role", role
+    );
+}
+
+@GetMapping("/tenants")
+public List<Map<String, Object>> tenants(Authentication auth) {
+    if (admin(auth)) {
+        return jdbc.queryForList(
+                "SELECT id, name, zone, concurrency_cap AS \"concurrencyCap\", paused FROM tenant ORDER BY name"
+        );
+    }
+
+    return jdbc.queryForList(
+            "SELECT t.id, t.name, t.zone, t.concurrency_cap AS \"concurrencyCap\", t.paused " +
+            "FROM tenant t JOIN app_user u ON u.tenant_id = t.id " +
+            "WHERE u.username = ? ORDER BY t.name",
+            auth.getName()
+    );
+}
     public record TenantRequest(@NotBlank String name,@NotBlank String zone,@Min(1) @Max(128) int concurrencyCap) {}
     public record UserRequest(@NotBlank String username,@NotBlank @Size(min=12) String password,@NotBlank @Pattern(regexp="ADMIN|OPERATOR|EMPLOYEE") String role,UUID tenantId) {}
     public record JobRequest(@NotBlank String kind,String cron,Instant at,@NotBlank String payload,int priority,
@@ -79,6 +108,66 @@ public class ApiController {
         List<Instant> result=new ArrayList<>();result.add(first);
         if(count>1) result.addAll(FireTimes.nextN((String)row.get("cron"),ZoneId.of(zone),first,count-1));return result;
     }
+    @GetMapping("/tenants/{tenant}/overview")
+public Map<String, Long> overview(Authentication auth, @PathVariable UUID tenant) {
+    access(auth, tenant, false);
+
+    return Map.of(
+        "jobs", jdbc.queryForObject("SELECT count(*) FROM job WHERE tenant_id=?", Long.class, tenant),
+        "running", jdbc.queryForObject("SELECT count(*) FROM job_run WHERE tenant_id=? AND state='RUNNING'", Long.class, tenant),
+        "retry", jdbc.queryForObject("SELECT count(*) FROM job_run WHERE tenant_id=? AND state='RETRY'", Long.class, tenant),
+        "dead", jdbc.queryForObject("SELECT count(*) FROM job_run WHERE tenant_id=? AND state='DEAD'", Long.class, tenant),
+        "ready", jdbc.queryForObject("SELECT count(*) FROM job_run WHERE tenant_id=? AND state='READY'", Long.class, tenant),
+        "nodes", (long) store.activeNodes().size()
+    );
+}
+
+@GetMapping("/tenants/{tenant}/jobs")
+public List<com.moveinsync.scheduler.model.Job> jobs(
+        Authentication auth, @PathVariable UUID tenant) {
+    access(auth, tenant, false);
+
+    return jdbc.query(
+        "SELECT * FROM job WHERE tenant_id=? ORDER BY next_fire_at",
+        (rs, rowNum) -> new com.moveinsync.scheduler.model.Job(
+            rs.getObject("id", UUID.class),
+            rs.getObject("tenant_id", UUID.class),
+            rs.getString("kind"),
+            rs.getString("cron"),
+            rs.getTimestamp("next_fire_at").toInstant(),
+            rs.getString("payload"),
+            rs.getInt("priority"),
+            rs.getInt("max_run_seconds"),
+            rs.getString("misfire"),
+            rs.getInt("shard"),
+            rs.getBoolean("enabled")
+        ),
+        tenant
+    );
+}
+
+@GetMapping("/tenants/{tenant}/runs")
+public List<Run> runs(Authentication auth, @PathVariable UUID tenant) {
+    access(auth, tenant, false);
+
+    return jdbc.query(
+        "SELECT * FROM job_run WHERE tenant_id=? ORDER BY scheduled_at DESC LIMIT 100",
+        (rs, rowNum) -> new Run(
+            rs.getObject("id", UUID.class),
+            rs.getObject("job_id", UUID.class),
+            rs.getObject("tenant_id", UUID.class),
+            rs.getTimestamp("scheduled_at").toInstant(),
+            rs.getString("state"),
+            rs.getInt("attempt"),
+            rs.getTimestamp("available_at").toInstant(),
+            rs.getTimestamp("lease_until") == null ? null : rs.getTimestamp("lease_until").toInstant(),
+            rs.getString("owner"),
+            rs.getLong("fence"),
+            rs.getString("idempotency_key")
+        ),
+        tenant
+    );
+}
     @PostMapping("/tenants/{tenant}/jobs/{job}/trigger") public Map<String,Object> trigger(Authentication auth,@PathVariable UUID tenant,@PathVariable UUID job) {
         access(auth,tenant,true);
         if(jdbc.queryForObject("SELECT count(*) FROM job WHERE id=? AND tenant_id=?",Long.class,job,tenant)==0) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Resource not found");
