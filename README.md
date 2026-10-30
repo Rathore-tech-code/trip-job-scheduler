@@ -2,7 +2,7 @@
 
 A Java 21, Spring Boot, and PostgreSQL backend for scheduling one-off and recurring jobs across three worker nodes. It supports tenant time zones, sharded work assignment, fenced leases, retries, tenant concurrency limits, and an idempotent database effect ledger.
 
-**This repository has an HTTP API, not a web UI.** The steps below use `curl`. See [DESIGN.md](DESIGN.md) for the architecture, failure handling, guarantees, and trade-offs.
+**This repository includes a REST API and a web-based operations dashboard. Open http://localhost:8080/ after starting the application. See [DESIGN.md](DESIGN.md) for the architecture, failure handling, guarantees, and trade-offs.** The steps below use `curl`. See [DESIGN.md](DESIGN.md) for the architecture, failure handling, guarantees, and trade-offs.
 
 ## Prerequisites
 
@@ -11,6 +11,27 @@ A Java 21, Spring Boot, and PostgreSQL backend for scheduling one-off and recurr
 - Ports **8080**, **8081**, **8082**, and **5432** available on your machine
 
 You do not need to install Java, Maven, or PostgreSQL for the Docker setup. Run all commands from the project directory.
+
+## Web Dashboard
+
+The project includes a browser-based operations dashboard.
+
+After starting the application, open:
+
+- Node 1: http://localhost:8080/
+- Node 2: http://localhost:8081/
+- Node 3: http://localhost:8082/
+
+Log in using the admin username and password configured during startup.
+
+The dashboard supports:
+- Tenant overview and management.
+- Job creation and scheduling.
+- Manual job triggering.
+- Execution history and run inspection.
+- Dead-letter inspection.
+- Tenant pause and resume controls.
+- Monitoring the three worker nodes.
 
 ## Start the project
 
@@ -112,7 +133,28 @@ With the application running, you can measure a scheduler-only burst:
 APP_BOOTSTRAP_ADMIN_PASSWORD="$ADMIN_PASSWORD" bash scripts/benchmark.sh 1000
 ```
 
-This benchmark inserts ready runs directly into PostgreSQL, so it excludes API creation time. On one development machine (Intel Core i5-12450HX, 12 logical CPUs, 23 GiB RAM, PostgreSQL 16.13, Java 21, one worker node), 1,000 simultaneous runs completed at **120.2 runs/s**, with **7.051 s p50** and **9.286 s p99** fire lag. The case study's p99 under 2 seconds target was **not met** for that burst. The 100,000-run, three-node target has not been verified.
+This benchmark inserts ready runs directly into PostgreSQL, excluding API creation time.
+
+#### Three-node, 100,000-run benchmark
+
+A 100,000-run benchmark was completed across three worker nodes.
+
+| Metric | Observed result |
+|---|---:|
+| Runs completed | 100,000 |
+| Execution window (first start to last completion) | 837.31 seconds |
+| Average effect execution time | 9.1 ms |
+| p99 fire lag | 1,454.634 seconds |
+| Target execution window | 600 seconds |
+| Target p99 fire lag | Below 2 seconds |
+
+**Performance status:** All 100,000 runs completed successfully, but the measured execution window and p99 fire lag did not meet the case study targets.
+
+The execution window measures from the first run's start to the last run's completion. It is not the full benchmark wall-clock duration.
+
+The p99 fire lag is calculated using the difference between each run's start time and scheduled time.
+
+These measurements are from a development environment and should not be treated as production performance guarantees.
 
 ## Stop and troubleshoot
 
