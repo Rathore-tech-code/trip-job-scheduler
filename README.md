@@ -1,8 +1,13 @@
 # Distributed Trip Job Scheduler
+![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.6-6DB33F?logo=springboot)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)
+![Architecture](https://img.shields.io/badge/Architecture-Distributed-blueviolet)
 
 A Java 21, Spring Boot, and PostgreSQL backend for scheduling one-off and recurring jobs across three worker nodes. It supports tenant time zones, sharded work assignment, fenced leases, retries, tenant concurrency limits, and an idempotent database effect ledger.
 
-**This repository includes a REST API and a web-based operations dashboard. Open http://localhost:8080/ after starting the application. See [DESIGN.md](DESIGN.md) for the architecture, failure handling, guarantees, and trade-offs.** The steps below use `curl`. See [DESIGN.md](DESIGN.md) for the architecture, failure handling, guarantees, and trade-offs.
+**This repository includes a REST API and a web-based operations dashboard. Open http://localhost:8080/ after starting the application.** The steps below use `curl` to demonstrate the API. See [DESIGN.md](DESIGN.md) for the architecture, failure handling, guarantees, and trade-offs.
 
 ## Prerequisites
 
@@ -32,6 +37,54 @@ The dashboard supports:
 - Dead-letter inspection.
 - Tenant pause and resume controls.
 - Monitoring the three worker nodes.
+
+## Dashboard Screenshots
+
+### Login Page
+
+![Scheduler Login](docs/images/login.png)
+
+### Dashboard Overview
+
+![Scheduler Dashboard Overview](docs/images/dashboard-overview.png)
+
+## How the Scheduler Works
+
+The following diagram illustrates the complete lifecycle of a scheduled job, from API creation and shard-based materialization to execution, idempotent effects, and failure recovery.
+
+```mermaid
+flowchart TD
+    A["Client / Dashboard"] --> B["Spring Boot REST API"]
+    B --> C[("PostgreSQL")]
+    C --> D["Three Worker Nodes"]
+    D --> E{"Owns the shard?"}
+    E -->|Yes| F["Find due jobs"]
+    F --> G["Materialize run"]
+    G --> H["Claim using SKIP LOCKED"]
+    H --> I["Acquire tenant slot, lease and fence"]
+    I --> J["Execute job"]
+    J --> K{"Effect succeeds?"}
+    K -->|Yes| L["Commit idempotent effect"]
+    L --> M["Mark SUCCEEDED"]
+    K -->|No| N["Retry with backoff"]
+    N --> O{"Attempts exhausted?"}
+    O -->|No| H
+    O -->|Yes| P["Dead Letter Queue"]
+```
+
+## Key Engineering Highlights
+
+| Challenge | Implementation |
+|---|---|
+| Distributed coordination | 256 logical shards across three worker nodes |
+| Concurrent job claiming | PostgreSQL `FOR UPDATE SKIP LOCKED` |
+| Stale worker protection | Time-limited leases and fencing tokens |
+| Duplicate effect prevention | Idempotency keys and transactional effect ledger |
+| Tenant concurrency | Database-backed concurrency slots |
+| Failure recovery | Exponential backoff, retries, and Dead Letter Queue |
+| Scheduling correctness | IANA time zones and DST-aware cron scheduling |
+| Misfire handling | FIRE_NOW, SKIP, and COALESCE policies |
+| Operational control | Tenant pause/resume and manual job triggering |
 
 ## Start the project
 
