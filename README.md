@@ -219,3 +219,10 @@ docker compose stop
 `docker compose stop` preserves the containers and their database contents for the next `docker compose start`. **`docker compose down` removes the PostgreSQL container and its data**, because this demo does not configure a persistent volume.
 
 If startup fails, check `docker compose ps` and `docker compose logs postgres node1`. Port conflicts are common; free ports 5432 and 8080-8082 before retrying. If authentication fails after changing `ADMIN_PASSWORD`, remember that an existing database still has the password from its first startup.
+
+## Project Demo
+
+Watch the complete project walkthrough, covering the dashboard,
+job scheduling, execution flow, and operational controls.
+
+▶️ **[Watch Demo Video](https://1drv.ms/v/c/5c5ed2f461fa0214/IQDDzer6FDuOSpNmISESpk8CATuRkX4-gJjn7fJTckxPjOY?e=5GnkjP)**
