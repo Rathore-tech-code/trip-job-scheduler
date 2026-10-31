@@ -184,6 +184,21 @@
     $('today-label').textContent = now.toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
   }
   $('login-form').addEventListener('submit',login);
+  // Show / Hide password toggle
+const passwordInput = $('login-password');
+const togglePassword = $('toggle-password');
+
+togglePassword?.addEventListener('click', () => {
+    const isHidden = passwordInput.type === 'password';
+
+    passwordInput.type = isHidden ? 'text' : 'password';
+    togglePassword.textContent = isHidden ? 'Hide' : 'Show';
+
+    togglePassword.setAttribute(
+        'aria-label',
+        isHidden ? 'Hide password' : 'Show password'
+    );
+});
   $('logout-button').addEventListener('click',logout);
   $('refresh-button').addEventListener('click',refresh);
   $('tenant-select').addEventListener('change',() => { state.tenant = state.tenants.find(t => t.id === $('tenant-select').value) || null; updateTenantChrome(); refresh(); });

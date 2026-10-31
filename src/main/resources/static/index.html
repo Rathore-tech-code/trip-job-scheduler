@@ -19,7 +19,16 @@
       <p class="login-copy">Sign in to monitor scheduled work, inspect runs, and manage your tenant's jobs.</p>
       <form id="login-form" class="form-stack">
         <label>Username<input id="login-user" name="username" autocomplete="username" required value="admin"></label>
-        <label>Password<input id="login-password" name="password" type="password" autocomplete="current-password" required></label>
+       <label for="login-password">Password</label>
+<div class="password-input-wrap">
+    <input id="login-password" name="password"
+           type="password"
+           autocomplete="current-password"
+           required>
+    <button type="button" id="toggle-password" class="password-toggle">
+        Show
+    </button>
+</div>
         <button class="button primary wide" type="submit">Enter control room <span aria-hidden="true">↗</span></button>
       </form>
       <p id="login-error" class="form-error" role="alert" hidden></p>
