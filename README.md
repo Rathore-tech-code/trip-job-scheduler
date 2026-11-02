@@ -7,7 +7,11 @@
 
 A Java 21, Spring Boot, and PostgreSQL backend for scheduling one-off and recurring jobs across three worker nodes. It supports tenant time zones, sharded work assignment, fenced leases, retries, tenant concurrency limits, and an idempotent database effect ledger.
 
-**This repository includes a REST API and a web-based operations dashboard. Open http://localhost:8080/ after starting the application.** The steps below use `curl` to demonstrate the API. See [DESIGN.md](DESIGN.md) for the architecture, failure handling, guarantees, and trade-offs.
+This repository includes a REST API and a web-based operations dashboard. Open http://localhost:8080/ after starting the application.
+
+**Project Documentation:**
+- [ARCHITECTURE.md](ARCHITECTURE.md) – High-Level Design (HLD), Low-Level Design (LLD), system architecture, component diagrams, database ER diagram, and execution flow.
+- [DESIGN.md](DESIGN.md) – Core design decisions, failure handling, concurrency guarantees, recovery mechanisms, and engineering trade-offs.
 
 ## Prerequisites
 
